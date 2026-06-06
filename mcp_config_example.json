@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "blender": {
+      "command": "ubm",
+      "args": ["serve", "--stdio"],
+      "description": "Universal Blender MCP Server"
+    }
+  }
+}
