@@ -94,14 +94,14 @@ def create(type, name, location, size, verbose):
             if verbose:
                 click.echo(f"✅ 成功!")
                 click.echo()
-            click.echo(f"✓ Created {result['name']} ({result['type']})")
+            click.echo(f"{SUCCESS} Created {result['name']} ({result['type']})")
             click.echo(f"  Location: {result['location']}")
             click.echo(f"  Size: {result['size']}")
         else:
-            click.echo(f"✗ Error: {result.get('error', 'Unknown error')}")
+            click.echo(f"{ERROR} Error: {result.get('error', 'Unknown error')}")
             
     except Exception as e:
-        click.echo(f"✗ Failed: {e}")
+        click.echo(f"{ERROR} Failed: {e}")
 
 
 @cli.command()
