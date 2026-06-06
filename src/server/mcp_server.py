@@ -335,8 +335,17 @@ def capture_viewport(
     
     logger.info(f"Capturing viewport to {output_path} ({width}x{height})")
     
-    # For now, use Blender's built-in render
-    # TODO: Implement Rust screenshot
+    # Try Rust screenshot first if enabled
+    if use_rust:
+        try:
+            from ..rust_bridge import capture_blender_viewport
+            result_path = capture_blender_viewport(output_path, width, height)
+            logger.info(f"Rust screenshot saved: {result_path}")
+            return result_path
+        except Exception as e:
+            logger.warning(f"Rust screenshot failed: {e}, falling back to Blender render")
+    
+    # Fallback to Blender's built-in render
     connector = get_blender_connector()
     
     code = f"""
