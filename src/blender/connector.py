@@ -22,6 +22,7 @@ class BlenderConnector:
         """Try to find Blender executable"""
         common_paths = [
             "blender",  # In PATH
+            r"C:\Program Files\Blender Foundation\Blender 5.1\blender.exe",
             r"C:\Program Files\Blender Foundation\Blender 4.5\blender.exe",
             r"C:\Program Files\Blender Foundation\Blender 4.4\blender.exe",
             r"C:\Program Files\Blender Foundation\Blender 4.3\blender.exe",

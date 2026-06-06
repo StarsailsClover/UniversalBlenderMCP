@@ -23,7 +23,14 @@ def get_blender_connector():
     """Get or create blender connector singleton"""
     global _blender_connector
     if _blender_connector is None:
-        from ..blender.connector import BlenderConnector
+        try:
+            from ..blender.connector import BlenderConnector
+        except ImportError:
+            # Fallback for direct execution
+            import sys
+            from pathlib import Path
+            sys.path.insert(0, str(Path(__file__).parent.parent))
+            from blender.connector import BlenderConnector
         _blender_connector = BlenderConnector()
     return _blender_connector
 

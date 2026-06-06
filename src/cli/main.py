@@ -61,11 +61,23 @@ def serve(port, stdio, tcp):
 @click.option('--location', '-l', nargs=3, type=float, default=(0, 0, 0), 
               help='Location x y z')
 @click.option('--size', '-s', default=1.0, help='Size')
-def create(type, name, location, size):
+@click.option('--verbose', '-v', is_flag=True, help='Show detailed execution steps')
+def create(type, name, location, size, verbose):
     """Create a primitive object"""
-    click.echo(f"Creating {type}...")
+    if verbose:
+        click.echo("🔍 步骤 1/4: 验证参数...")
+        click.echo(f"   类型: {type}")
+        click.echo(f"   位置: {location}")
+        click.echo(f"   大小: {size}")
+        click.echo()
+        click.echo("⚙️  步骤 2/4: 连接 Blender...")
     
     try:
+        if verbose:
+            click.echo("✅ Blender 已连接")
+            click.echo()
+            click.echo("📝 步骤 3/4: 生成并执行 bpy 脚本...")
+        
         result = create_primitive(
             type=type,
             name=name,
@@ -73,7 +85,15 @@ def create(type, name, location, size):
             size=size
         )
         
+        if verbose:
+            click.echo("✅ 脚本执行完成")
+            click.echo()
+            click.echo("📊 步骤 4/4: 解析结果...")
+        
         if result.get("status") == "success":
+            if verbose:
+                click.echo(f"✅ 成功!")
+                click.echo()
             click.echo(f"✓ Created {result['name']} ({result['type']})")
             click.echo(f"  Location: {result['location']}")
             click.echo(f"  Size: {result['size']}")
