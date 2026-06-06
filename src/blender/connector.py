@@ -88,51 +88,137 @@ print("UBM addon installed and enabled")
             logger.error(f"Failed to install addon: {e}")
             return False
     
-    def execute_bpy(self, code: str) -> Dict[str, Any]:
-        """Execute Python code in Blender"""
-        # Write code to temp file
-        script_path = Path(self.temp_dir) / "script.py"
-        result_path = Path(self.temp_dir) / "result.json"
+    def execute_bpy(self, code: str, timeout: int = 30) -> Dict[str, Any]:
+        """Execute Python code in Blender and return result.
         
-        # Wrap code to capture result
-        wrapped_code = f"""
-import bpy
+        Args:
+            code: Python code to execute (using bpy)
+            timeout: Maximum execution time in seconds
+        
+        Returns:
+            Execution result with status, result or error
+        """
+        import uuid
+        
+        # Generate unique IDs for this execution
+        execution_id = str(uuid.uuid4())[:8]
+        script_path = Path(self.temp_dir) / f"script_{execution_id}.py"
+        result_path = Path(self.temp_dir) / f"result_{execution_id}.json"
+        
+        # Wrap code to capture result with error handling
+        wrapped_code = f"""import bpy
 import json
+import traceback
 import sys
 
-# User code
-{code}
+result = {{"status": "success", "data": {{}}}}
+
+try:
+    # Execute user code
+{chr(10).join('    ' + line for line in code.split(chr(10)))}
+    
+    # Try to get context info
+    try:
+        if bpy.context.active_object:
+            obj = bpy.context.active_object
+            result["data"]["active_object"] = {{
+                "name": obj.name,
+                "type": obj.type,
+                "location": list(obj.location)
+            }}
+    except:
+        pass
+        
+except Exception as e:
+    result["status"] = "error"
+    result["error"] = str(e)
+    result["traceback"] = traceback.format_exc()
 
 # Save result
-result = {{"status": "success"}}
-with open("{result_path}", "w") as f:
-    json.dump(result, f)
+with open(r"{result_path}", "w") as f:
+    json.dump(result, f, indent=2)
 """
         
-        script_path.write_text(wrapped_code)
+        script_path.write_text(wrapped_code, encoding='utf-8')
         
         # Execute in Blender
         try:
-            result = subprocess.run(
+            logger.info(f"Executing Blender script: {script_path}")
+            proc_result = subprocess.run(
                 [self.blender_path, "--background", "--python", str(script_path)],
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=timeout
             )
             
-            if result.returncode != 0:
+            logger.debug(f"Blender stdout: {proc_result.stdout}")
+            logger.debug(f"Blender stderr: {proc_result.stderr}")
+            
+            if proc_result.returncode != 0:
+                # Blender execution failed
                 return {
                     "status": "error",
-                    "error": result.stderr
+                    "error": f"Blender execution failed: {proc_result.stderr}",
+                    "stdout": proc_result.stdout
                 }
             
             # Read result
             if result_path.exists():
-                return json.loads(result_path.read_text())
+                with open(result_path, 'r', encoding='utf-8') as f:
+                    result = json.load(f)
+                # Clean up result file
+                result_path.unlink()
+                return result
             else:
-                return {"status": "success"}
+                return {
+                    "status": "error",
+                    "error": "Result file not created",
+                    "stdout": proc_result.stdout
+                }
                 
         except subprocess.TimeoutExpired:
-            return {"status": "error", "error": "Execution timeout"}
+            return {"status": "error", "error": f"Execution timeout after {timeout}s"}
         except Exception as e:
             return {"status": "error", "error": str(e)}
+    
+    def execute_bpy_simple(self, code: str) -> Dict[str, Any]:
+        """Execute simple bpy code without complex result handling"""
+        return self.execute_bpy(code)
+    
+    def get_scene_info(self) -> Dict[str, Any]:
+        """Get current scene information from Blender"""
+        code = """
+# Get scene info
+scene = bpy.context.scene
+objects = []
+
+for obj in scene.objects:
+    obj_info = {
+        "name": obj.name,
+        "type": obj.type,
+        "location": [round(x, 4) for x in obj.location],
+        "rotation": [round(x, 4) for x in obj.rotation_euler],
+        "scale": [round(x, 4) for x in obj.scale],
+        "visible": obj.visible_get()
+    }
+    
+    # Add mesh-specific info
+    if obj.type == 'MESH' and obj.data:
+        obj_info["vertices"] = len(obj.data.vertices)
+        obj_info["faces"] = len(obj.data.polygons)
+    
+    objects.append(obj_info)
+
+# Collect scene info
+result["data"]["scene"] = {
+    "name": scene.name,
+    "frame_current": scene.frame_current,
+    "frame_start": scene.frame_start,
+    "frame_end": scene.frame_end,
+    "objects_count": len(objects),
+    "objects": objects,
+    "render_engine": scene.render.engine,
+    "resolution": [scene.render.resolution_x, scene.render.resolution_y]
+}
+"""
+        return self.execute_bpy(code)
